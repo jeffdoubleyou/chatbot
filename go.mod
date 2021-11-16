@@ -1,4 +1,4 @@
-module github.com/kevwan/chatbot
+module github.com/jeffdoubleyou/chatbot
 
 go 1.15
 
