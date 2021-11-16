@@ -8,9 +8,9 @@ import (
 	"os"
 	"time"
 
-	"github.com/kevwan/chatbot/bot"
-	"github.com/kevwan/chatbot/bot/adapters/logic"
-	"github.com/kevwan/chatbot/bot/adapters/storage"
+	"github.com/jeffdoubleyou/chatbot/bot"
+	"github.com/jeffdoubleyou/chatbot/bot/adapters/logic"
+	"github.com/jeffdoubleyou/chatbot/bot/adapters/storage"
 )
 
 var (

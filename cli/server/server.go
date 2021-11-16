@@ -1,18 +1,20 @@
 package main
 
 import (
+	"encoding/json"
 	"flag"
 	"fmt"
-	"github.com/gin-contrib/cors"
-	"github.com/gin-gonic/gin"
-	"github.com/gobuffalo/packr"
-	"github.com/kevwan/chatbot/bot"
-	"github.com/kevwan/chatbot/bot/adapters/logic"
 	"net/http"
 	"regexp"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/gin-contrib/cors"
+	"github.com/gin-gonic/gin"
+	"github.com/gobuffalo/packr"
+	"github.com/jeffdoubleyou/chatbot/bot"
+	"github.com/jeffdoubleyou/chatbot/bot/adapters/logic"
 )
 
 var factory *bot.ChatBotFactory
@@ -20,14 +22,14 @@ var factory *bot.ChatBotFactory
 var (
 	verbose = flag.Bool("v", false, "verbose mode")
 	tops    = flag.Int("t", 5, "the number of answers to return")
-	dir     = flag.String("d", "/Users/dev/repo/chatterbot-corpus/chatterbot_corpus/data/chinese", "the directory to look for corpora files")
+	dir     = flag.String("d", "/Users/jeffreyweitz/src/chatterbot-corpus/chatterbot_corpus/data/english", "the directory to look for corpora files")
 	//sqliteDB = flag.String("sqlite3", "/Users/junqiang.zhang/repo/go/chatbot/chatbot.db", "the file path of the corpus sqlite3")
 	driver        = flag.String("driver", "sqlite3", "db driver")
 	datasource    = flag.String("datasource", "chatbot.db", "datasource connection")
 	bind          = flag.String("b", ":8080", "bind addr")
 	project       = flag.String("project", "DMS", "the name of the project in sqlite3 db")
 	corpora       = flag.String("i", "", "the corpora files, comma to separate multiple files")
-	storeFile     = flag.String("o", "/Users/dev/repo/chatbot/corpus.gob", "the file to store corpora")
+	storeFile     = flag.String("o", "/Users/jeffreyweitz/src/chatbot/corpus.gob", "the file to store corpora")
 	printMemStats = flag.Bool("m", false, "enable printing memory stats")
 )
 
@@ -57,8 +59,8 @@ func init() {
 
 func HandlerResult(ctx *gin.Context, data *interface{}, err *error) {
 	message := "success"
-	if *err!=nil{
-		message=(*err).Error()
+	if *err != nil {
+		message = (*err).Error()
 	}
 	if *err != nil {
 		ctx.JSON(200, JsonResult{
@@ -123,7 +125,7 @@ func bindRounter(router *gin.Engine) {
 		}
 		questions := exp.Split(corpus.Question, -1)
 		for _, question := range questions {
-			if strings.TrimSpace(question)==""{
+			if strings.TrimSpace(question) == "" {
 				continue
 			}
 			if !strings.HasSuffix(question, "?") && !strings.HasSuffix(question, "？") {
@@ -146,6 +148,7 @@ func bindRounter(router *gin.Engine) {
 			p = *project
 		}
 		var chatbot *bot.ChatBot
+		fmt.Printf("Get chat bot: %s\n", p)
 		if chatbot, _ = factory.GetChatBot(p); chatbot == nil {
 			factory.Refresh()
 
@@ -153,12 +156,17 @@ func bindRounter(router *gin.Engine) {
 
 			return
 		}
+
+		j, _ := json.Marshal(chatbot.Config)
+		fmt.Printf("CONFIG: %s\n", j)
 		q := context.Query("q")
 		if !strings.HasSuffix(q, "?") && !strings.HasSuffix(q, "？") {
 			q = q + "?"
 		}
 		results := chatbot.GetResponse(q)
 		qas := buildAnswer(results)
+		fmt.Printf("Q: %s\n", q)
+		fmt.Printf("RESULT: %v\n", qas)
 		if len(qas) > 0 {
 			feedback := bot.Feedback{
 				Question: q,
@@ -245,12 +253,12 @@ func bindRounter(router *gin.Engine) {
 		defer HandlerResult(context, &data, &err)
 		var corpus bot.Corpus
 		context.Bind(&corpus)
-		if len(corpus.Question)<45 {
-			err=fmt.Errorf("标题于简单，不少于15个汉字！！！")
+		if len(corpus.Question) < 45 {
+			err = fmt.Errorf("标题于简单，不少于15个汉字！！！")
 			return
 		}
-		if len(corpus.Answer)<120 {
-			err=fmt.Errorf("问题描述过于简单，不少于40个汉字！！！")
+		if len(corpus.Answer) < 120 {
+			err = fmt.Errorf("问题描述过于简单，不少于40个汉字！！！")
 			return
 		}
 		corpus.Qtype = int(bot.CORPUS_REQUIREMENT)
@@ -305,6 +313,7 @@ func main() {
 		DataSource: *datasource,
 	})
 	factory.Init()
+
 	router := gin.Default()
 	router.Use(Cors())
 	box := packr.NewBox("../../static")

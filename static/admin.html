@@ -15,7 +15,7 @@
     <div id="left" style="float: left;width: 49%">
 
 
-        <span style="display: block;width: 100%;">项目：<select id="project" name="project" style="width: 80%;">
+        <span style="display: block;width: 100%;">Project：<select id="project" name="project" style="width: 80%;">
 
             <!--
             <option value="DMS">DMS</option>
@@ -24,7 +24,7 @@
         </select></span>
 
         <input type="hidden" id="id" name="id"/>
-        <span style="display: block;width: 100%;">问题：<textarea id="question" title="每行一个问题，多行表示多种问法，但答案都是同一个。" rows="3"
+        <span style="display: block;width: 100%;">Answer：<textarea id="question" title="每行一个Answer，多行表示多种问法，但答案都是同一个。" rows="3"
                                                                name="question" style="width: 80%;"></textarea></span>
         <span style="display: block;width: 100%;:width;">答案：<textarea id="answer" name="answer" rows="10" cols="50"
                                                                       style="width: 80%;"></textarea></span>
@@ -37,7 +37,7 @@
                 <th>编号</th>
                 <th>分类</th>
                 <th>项目</th>
-                <th>问题</th>
+                <th>Answer</th>
                 <th>操作</th>
             </tr>
             </thead>
@@ -51,9 +51,9 @@
 
 
     <div id="right" style="float:right;width: 49%">
-        <span style="display: block;width: 100%;">你的问题？：<br><input id="q" name="" style="width: 80%;"></span>
+        <span style="display: block;width: 100%;">Question？：<br><input id="q" name="" style="width: 80%;"></span>
         <span style="display: block;width: 100%;:width;" id="result"></span>
-        <span><button id="btnQuery">获取答案</button></span>
+        <span><button id="btnQuery">Get Answer</button></span>
     </div>
 </div>
 
@@ -99,16 +99,16 @@
             },
 
             columns: [
-                {'data': 'id', "defaultContent": "默认值", 'className': '类名'},
+                {'data': 'id', "defaultContent": "Default", 'className': 'Class name'},
                 {
                     'data': 'qtype',
-                    "defaultContent": "默认值",
-                    'className': '类名',
+                    "defaultContent": "Default",
+                    'className': 'className',
                     render: function (val, type, data, meta) {
                         if(val==1 || val=='1') {
-                            return '问答'
+                            return 'Question'
                         } else {
-                            return '需求'
+                            return 'Answer'
                         }
                     }
                 },
@@ -129,7 +129,7 @@
                 var js = JSON.stringify(data)
 
                 var td = $(row).find('td:last-child');
-                var html = "<textarea style='display: none;' id='c" + id + "'>" + js + "</textarea>" + "<a onclick='editCorpus(" + id + ")'>编辑</a>";
+                var html = "<textarea style='display: none;' id='c" + id + "'>" + js + "</textarea>" + "<a onclick='editCorpus(" + id + ")'>Edit</a>";
                 td.html(html)
             }
         });
@@ -185,7 +185,7 @@
                 if (resp.code == 0) {
                     var data = resp.data
                     if (data != null && data.length > 0) {
-                        $('#result').html('<pre style="color: coral;">我猜你的问题是：' + data[0].question + ' </pre> <pre style="width: width:100%;">答案：' + data[0].answer + '</pre>')
+                        $('#result').html('<pre style="color: coral;">我猜你的Answer是：' + data[0].question + ' </pre> <pre style="width: width:100%;">答案：' + data[0].answer + '</pre>')
                     } else {
                         $('#result').text('没有找到答案。。。')
                     }

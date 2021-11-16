@@ -5,8 +5,8 @@ import (
 	"math"
 	"sort"
 
-	"github.com/kevwan/chatbot/bot/adapters/storage"
-	"github.com/kevwan/chatbot/bot/nlp"
+	"github.com/jeffdoubleyou/chatbot/bot/adapters/storage"
+	"github.com/jeffdoubleyou/chatbot/bot/nlp"
 	"github.com/tal-tech/go-zero/core/mr"
 )
 
@@ -27,7 +27,7 @@ type (
 	}
 
 	answerAndOccurrence struct {
-		question string
+		question   string
 		answer     string
 		occurrence int
 	}
@@ -58,11 +58,11 @@ func (match *closestMatch) CanProcess(string) bool {
 	return true
 }
 
-func (match *closestMatch) Process(text string) []Answer {
-	if responses, ok := match.storage.Find(text); ok {
+func (match *closestMatch) Process(text string, context ...string) []Answer {
+	if responses, ok := match.storage.Find(text, context...); ok {
 		return match.processExactMatch(responses)
 	} else {
-		return match.processSimilarMatch(text)
+		return match.processSimilarMatch(text, context...)
 	}
 }
 
@@ -95,9 +95,9 @@ func (match *closestMatch) processExactMatch(responses map[string]int) []Answer 
 	return answers
 }
 
-func (match *closestMatch) processSimilarMatch(text string) []Answer {
+func (match *closestMatch) processSimilarMatch(text string, context ...string) []Answer {
 	result, err := mr.MapReduce(generator(match, text), mapper(match), reducer(match))
-	if err != nil{
+	if err != nil {
 		return nil
 	}
 
@@ -105,7 +105,7 @@ func (match *closestMatch) processSimilarMatch(text string) []Answer {
 	slice := result.([]questionAndScore)
 	for _, each := range slice {
 		if each.score > 0 {
-			if responses, ok := match.storage.Find(each.question); ok {
+			if responses, ok := match.storage.Find(each.question, context...); ok {
 				matches := match.processExactMatch(responses)
 				if len(matches) > 0 {
 					answers = append(answers, Answer{

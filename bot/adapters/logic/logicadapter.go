@@ -9,7 +9,7 @@ type (
 
 	LogicAdapter interface {
 		CanProcess(string) bool
-		Process(string) []Answer
+		Process(string, ...string) []Answer
 		SetVerbose()
 	}
 )

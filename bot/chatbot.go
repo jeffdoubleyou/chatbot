@@ -4,20 +4,22 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/go-xorm/xorm"
-	"github.com/kevwan/chatbot/bot/corpus"
-	"github.com/prometheus/common/log"
 	"path/filepath"
 	"regexp"
 	"strings"
 	"sync"
 
-	_ "github.com/go-sql-driver/mysql"
-	"github.com/kevwan/chatbot/bot/adapters/logic"
-	"github.com/kevwan/chatbot/bot/adapters/storage"
-	_ "github.com/mattn/go-sqlite3"
+	"github.com/go-xorm/xorm"
+	"github.com/jeffdoubleyou/chatbot/bot/corpus"
+	"github.com/prometheus/common/log"
+
 	"runtime"
 	"time"
+
+	_ "github.com/go-sql-driver/mysql"
+	"github.com/jeffdoubleyou/chatbot/bot/adapters/logic"
+	"github.com/jeffdoubleyou/chatbot/bot/adapters/storage"
+	_ "github.com/mattn/go-sqlite3"
 )
 
 const mega = 1024 * 1024
@@ -57,8 +59,10 @@ func NewChatBotFactory(config Config) *ChatBotFactory {
 
 }
 func (f *ChatBotFactory) Init() {
+	fmt.Printf("Initialize factory....\n")
 	var err error
 	if engine == nil {
+		fmt.Printf("New Engine using %s from %s\n", f.config.Driver, f.config.DataSource)
 		engine, err = xorm.NewEngine(f.config.Driver, f.config.DataSource)
 		if err != nil {
 			panic(err)
@@ -67,22 +71,23 @@ func (f *ChatBotFactory) Init() {
 		if err != nil {
 			log.Error(err)
 		}
-
 	}
 	projects := make([]Project, 0)
 	err = engine.Find(&projects)
 	for _, project := range projects {
+		fmt.Printf("Initializing project %s\n", project.Name)
 		var conf Config
 		json.Unmarshal([]byte(project.Config), &conf)
 		if project.Name == "" {
 			continue
 		}
 		conf.Project = project.Name
+		fmt.Printf("Loading project '%s'\n", project.Name)
 		if _, ok := f.GetChatBot(project.Name); !ok {
-			store, _ := storage.NewSeparatedMemoryStorage(fmt.Sprintf("%s.gob", project.Name))
+			store := storage.NewMemoryStorage()
 			chatbot := &ChatBot{
 				LogicAdapter:   logic.NewClosestMatch(store, 5),
-				PrintMemStats:  false,
+				PrintMemStats:  f.config.PrintMemStats,
 				Trainer:        NewCorpusTrainer(store),
 				StorageAdapter: store,
 				Config:         conf,
@@ -124,10 +129,63 @@ func (f *ChatBotFactory) ListProject() []Project {
 	return projects
 }
 
+func (f *ChatBotFactory) AddProject(name, config string) (*Project, error) {
+	project := &Project{
+		Name:   name,
+		Config: config,
+	}
+
+	if exists, _ := f.GetProject(name); exists {
+		return nil, fmt.Errorf("project with name '%s' already exists", name)
+	}
+
+	if id, err := engine.Insert(project); err != nil {
+		return nil, err
+	} else {
+		fmt.Printf("Added new project %s with ID %d\n", name, id)
+		project.Id = int(id)
+		return project, nil
+	}
+}
+
+func (f *ChatBotFactory) GetProject(name string) (bool, error) {
+	project := &Project{
+		Name: name,
+	}
+	if p, err := engine.Get(project); err != nil {
+		return false, err
+	} else {
+		return p, nil
+	}
+}
+
+func (f *ChatBotFactory) GetCorpusById(id int) *Corpus {
+	var corpus []Corpus
+	session := engine.Limit(1, 0).Where("id = ?", id)
+	if err := session.Find(&corpus); err != nil {
+		fmt.Printf("Error retrieving corpus ID %d: %s\n", id, err.Error())
+		return nil
+	} else {
+		if len(corpus) == 1 {
+			return &corpus[0]
+		} else {
+			fmt.Printf("Could not find corpus ID %d", id)
+			return nil
+		}
+	}
+}
+
 func (f *ChatBotFactory) ListCorpus(corpus Corpus, start int, limit int) []Corpus {
 	var corpuses []Corpus
 	var err error
-	err = engine.Limit(limit, start).Where("question like ?", "%"+corpus.Question+"%").Find(&corpuses)
+	session := engine.Limit(limit, start)
+	if corpus.Project != "" {
+		session.Where("project = ?", corpus.Project)
+	}
+	if corpus.Question != "" {
+		session.Where("question like ?", "%"+corpus.Question+"%")
+	}
+	err = session.Find(&corpuses)
 	if err != nil {
 		log.Error(err)
 	}
@@ -161,26 +219,51 @@ func (chatbot *ChatBot) Init() {
 		}
 	}
 	err = chatbot.TrainWithDB()
-	log.Error(err)
 	if err != nil {
+		log.Error(err)
 		panic(err)
 	}
 }
 
 type Corpus struct {
-	Id          int       `json:"id" form:"id" xorm:"int pk autoincr notnull 'id' comment('编号')"`
-	Class       string    `json:"class" form:"class"  xorm:"varchar(255) notnull 'class' comment('分类')"`
-	Project     string    `json:"project" form:"project" xorm:"varchar(255) notnull 'project' comment('项目')"`
-	Question    string    `json:"question" form:"question"  xorm:"varchar(2048) notnull  'question' comment('问题')"`
-	Answer      string    `json:"answer" form:"answer" xorm:"text notnull  'answer' comment('回答')"`
-	Creator     string    `json:"creator" form:"creator" xorm:"varchar(256) notnull  'creator' comment('创建人')"`
-	Principal   string    `json:"principal" form:"principal" xorm:"varchar(256) notnull  'principal' comment('责负人')"`
-	Reviser     string    `json:"reviser" form:"reviser" xorm:"varchar(256) notnull  'reviser' comment('修订人')"`
-	AcceptCount int       `json:"accept_count" form:"accept_count" xorm:"int notnull default 0  'accept_count' comment('解决次数')"`
-	RejectCount int       `json:"reject_count" form:"reject_count" xorm:"int notnull  default 0 'reject_count' comment('解决次数')"`
-	CreatTime   time.Time `json:"creat_time" xorm:"creat_time created" json:"creat_time" description:"创建时间"`
-	UpdateTime  time.Time `json:"update_time" xorm:"update_time updated"json:"update_time"description:"更新时间"`
-	Qtype       int       `json:"qtype" form:"qtype" xorm:"int notnull 'qtype' comment('类型，需求，问答')"`
+	Id       int    `json:"id" form:"id" xorm:"int pk autoincr notnull 'id' comment('编号')"`
+	Class    string `json:"class" form:"class"  xorm:"varchar(255) notnull 'class' comment('分类')"`
+	Project  string `json:"project" form:"project" xorm:"varchar(255) notnull 'project' comment('项目')"`
+	Question string `json:"question" form:"question"  xorm:"varchar(2048) notnull  'question' comment('问题')"`
+	Answer   string `json:"answer" form:"answer" xorm:"text notnull  'answer' comment('回答')"`
+	//Creator     string    `json:"creator" form:"creator" xorm:"varchar(256) notnull  'creator' comment('创建人')"`
+	Principal   string     `json:"principal" form:"principal" xorm:"varchar(256) notnull  'principal' comment('责负人')"`
+	Reviser     string     `json:"reviser" form:"reviser" xorm:"varchar(256) notnull  'reviser' comment('修订人')"`
+	AcceptCount int        `json:"accept_count" form:"accept_count" xorm:"int notnull default 0  'accept_count' comment('解决次数')"`
+	RejectCount int        `json:"reject_count" form:"reject_count" xorm:"int notnull  default 0 'reject_count' comment('解决次数')"`
+	CreatTime   time.Time  `json:"creat_time" xorm:"creat_time created" json:"creat_time" description:"创建时间"`
+	UpdateTime  time.Time  `json:"update_time" xorm:"update_time updated"json:"update_time"description:"更新时间"`
+	Qtype       int        `json:"qtype" form:"qtype" xorm:"int notnull 'qtype' comment('类型，需求，问答')"`
+	Context     string     `json:"context" form:"context" xorm:"varchar(255) notnull default '' 'context' comment('Context after answer')"`
+	Contextual  bool       `json:"contextual" form:"contextual" xorm:"int(1) not null default 0 'contextual' comment('Is this conversation contextual')"`
+	Data        CorpusData `json:"data" form:"data" xorm:"text notnull default '' 'data' comment('Data')"`
+}
+
+type CorpusData struct {
+	Data map[string]interface{}
+}
+
+func (corpusData *CorpusData) FromDB(data []byte) error {
+	if data == nil || len(data) == 0 {
+		corpusData = &CorpusData{}
+		return nil
+	} else {
+		return json.Unmarshal(data, corpusData)
+	}
+}
+
+func (corpusData *CorpusData) ToDB() ([]byte, error) {
+	fmt.Printf("Corpus data to DB")
+	if corpus, err := json.Marshal(corpusData); err != nil {
+		return nil, err
+	} else {
+		return corpus, nil
+	}
 }
 
 type Feedback struct {
@@ -208,11 +291,12 @@ type Project struct {
 }
 
 type Config struct {
-	Driver     string `json:"driver"`
-	DataSource string `json:"data_source"`
-	Project    string `json:"project"`
-	DirCorpus  string `json:"dir_corpus"`
-	StoreFile  string `json:"store_file"`
+	Driver        string `json:"driver"`
+	DataSource    string `json:"data_source"`
+	Project       string `json:"project"`
+	DirCorpus     string `json:"dir_corpus"`
+	StoreFile     string `json:"store_file"`
+	PrintMemStats bool   `json:"print_mem_stats"`
 }
 
 func (chatbot *ChatBot) Train(data interface{}) error {
@@ -234,8 +318,10 @@ func (chatbot *ChatBot) Train(data interface{}) error {
 	}
 
 	if err := chatbot.Trainer.Train(data); err != nil {
+		fmt.Printf("Failed to train data: %s\n", err.Error())
 		return err
 	} else {
+		fmt.Printf("Training complete for chatbot %s\n", chatbot.Config.Project)
 		return chatbot.StorageAdapter.Sync()
 	}
 }
@@ -267,7 +353,7 @@ func (chatbot *ChatBot) LoadCorpusFromDB() (map[string][][]string, error) {
 			if !strings.HasSuffix(question, "?") && !strings.HasSuffix(question, "？") {
 				question = question + "?"
 			}
-			corpus = append(corpus, question, fmt.Sprintf("%s$$$$%s$$$$%v", question, row.Answer, row.Id))
+			corpus = append(corpus, question, fmt.Sprintf("%s$$$$%s$$$$%v$$$$%s", question, row.Answer, row.Id, row.Class))
 		}
 		corpuses = append(corpuses, corpus)
 	}
@@ -448,9 +534,9 @@ func (chatbot *ChatBot) FindCorporaFiles(dir string) []string {
 	return append(files, yamlFiles...)
 }
 
-func (chatbot *ChatBot) GetResponse(text string) []logic.Answer {
+func (chatbot *ChatBot) GetResponse(text string, context ...string) []logic.Answer {
 	if chatbot.LogicAdapter.CanProcess(text) {
-		return chatbot.LogicAdapter.Process(text)
+		return chatbot.LogicAdapter.Process(text, context...)
 	}
 	return nil
 }

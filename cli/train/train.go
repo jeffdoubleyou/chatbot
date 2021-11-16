@@ -7,13 +7,13 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/kevwan/chatbot/bot"
-	"github.com/kevwan/chatbot/bot/adapters/storage"
+	"github.com/jeffdoubleyou/chatbot/bot"
+	"github.com/jeffdoubleyou/chatbot/bot/adapters/storage"
 )
 
 var (
-	dir      = flag.String("d", "/Users/dev/repo/chatterbot-corpus/chatterbot_corpus/data/chinese", "the directory to look for corpora files")
-	sqliteDB = flag.String("sqlite3", "/Users/dev/repo/chatbot/chatbot.db", "the file path of the corpus sqlite3")
+	dir      = flag.String("d", "/Users/jeffreyweitz/src/chatterbot-corpus/chatterbot_corpus/data/english", "the directory to look for corpora files")
+	sqliteDB = flag.String("sqlite3", "/Users/jeffreyweitz/src/chatbot/chatbot.db", "the file path of the corpus sqlite3")
 	//sqliteDB      = flag.String("sqlite3", "", "the file path of the corpus sqlite3")
 	project       = flag.String("project", "DMS", "the name of the project in sqlite3 db")
 	corpora       = flag.String("i", "", "the corpora files, comma to separate multiple files")
@@ -53,6 +53,11 @@ func main() {
 		PrintMemStats:  *printMemStats,
 		Trainer:        bot.NewCorpusTrainer(store),
 		StorageAdapter: store,
+		Config: bot.Config{
+			Project:    *project,
+			Driver:     "sqlite3",
+			DataSource: "chatbot.db",
+		},
 	}
 	if len(strings.Split(corporaFiles, ",")) > 0 {
 		corpuses, err := chatbot.LoadCorpusFromFiles(strings.Split(corporaFiles, ","))
@@ -62,7 +67,6 @@ func main() {
 	}
 	if *sqliteDB != "" {
 		if err := chatbot.TrainWithDB(); err != nil {
-
 			log.Fatal(err)
 		}
 	} else {
@@ -95,6 +99,8 @@ func findCorporaFiles(dir string) []string {
 	if err != nil {
 		fmt.Println(err)
 		return nil
+	} else {
+		fmt.Printf("Got files...")
 	}
 
 	return append(files, yamlFiles...)

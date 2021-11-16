@@ -4,7 +4,7 @@ import (
 	"encoding/gob"
 	"os"
 
-	"github.com/kevwan/chatbot/bot/nlp"
+	"github.com/jeffdoubleyou/chatbot/bot/nlp"
 )
 
 type separatedMemoryStorage struct {
@@ -52,7 +52,7 @@ func (storage *separatedMemoryStorage) Count() int {
 	return storage.declarativeStorage.Count() + storage.questionStorage.Count()
 }
 
-func (storage *separatedMemoryStorage) Find(sentence string) (map[string]int, bool) {
+func (storage *separatedMemoryStorage) Find(sentence string, context ...string) (map[string]int, bool) {
 	if nlp.IsQuestion(sentence) {
 		return storage.questionStorage.Find(sentence)
 	} else {
@@ -60,7 +60,7 @@ func (storage *separatedMemoryStorage) Find(sentence string) (map[string]int, bo
 	}
 }
 
-func (storage *separatedMemoryStorage) Search(sentence string) []string {
+func (storage *separatedMemoryStorage) Search(sentence string, context ...string) []string {
 	if nlp.IsQuestion(sentence) {
 		return storage.questionStorage.Search(sentence)
 	} else {

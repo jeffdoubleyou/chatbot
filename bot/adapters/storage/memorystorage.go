@@ -10,6 +10,7 @@ import (
 	"math"
 	"os"
 	"sort"
+	"strings"
 )
 
 const (
@@ -99,12 +100,31 @@ func (storage *memoryStorage) Count() int {
 	return len(storage.responses)
 }
 
-func (storage *memoryStorage) Find(text string) (map[string]int, bool) {
+func (storage *memoryStorage) Find(text string, context ...string) (map[string]int, bool) {
+	value, ok := storage.responses[text]
+	if ok && len(context) == 1 {
+		contextValue := map[string]int{}
+		for answer, v := range value {
+			a := strings.Split(answer, "$$$$")
+			if len(a) == 4 {
+				if a[3] == context[0] {
+					contextValue[answer] = v
+				}
+			} else {
+				contextValue[answer] = v
+			}
+		}
+		value = contextValue
+	}
+	return value, ok
+}
+
+func (storage *memoryStorage) FindWithContext(text, context string) (map[string]int, bool) {
 	value, ok := storage.responses[text]
 	return value, ok
 }
 
-func (storage *memoryStorage) Search(key string) []string {
+func (storage *memoryStorage) Search(key string, context ...string) []string {
 	ids := make(map[int]int8)
 	var maxMatches int8
 	collector := func(word string) {
@@ -158,10 +178,10 @@ func (storage *memoryStorage) Sync() error {
 
 	return storage.writer.Encode(storage.indexes)
 }
+
 //TODO 大量处理字符串，性能不是很好，后期考虑优化
 func (storage *memoryStorage) Update(text string, responses map[string]int) {
-
-	storage.responses[text]=responses
+	storage.responses[text] = responses
 	//titles := strings.Split(text, "|")
 	//if len(titles) == 1 {
 	//	titles = strings.Split(text, "｜")

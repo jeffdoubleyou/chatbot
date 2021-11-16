@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/kevwan/chatbot/bot/adapters/storage"
-	"github.com/kevwan/chatbot/bot/corpus"
+	"github.com/jeffdoubleyou/chatbot/bot/adapters/storage"
+	"github.com/jeffdoubleyou/chatbot/bot/corpus"
 )
 
 type (
@@ -74,10 +74,11 @@ func NewCorpusTrainer(storage storage.StorageAdapter) *CorpusTrainer {
 }
 
 func (trainer *CorpusTrainer) TrainWithCorpus(corpuses map[string][][]string) error {
-
+	fmt.Printf("Training with %d corpuses\n", len(corpuses))
 	convTrainer := NewConversationTrainer(trainer.storage)
 
 	for _, convs := range corpuses {
+		fmt.Printf("Have %d conversations in this corpus\n", len(convs))
 		for _, conv := range convs {
 			convTrainer.Train(conv)
 		}

@@ -19,10 +19,10 @@ func (match *comboMatch) CanProcess(question string) bool {
 	return false
 }
 
-func (match *comboMatch) Process(question string) []Answer {
+func (match *comboMatch) Process(question string, context ...string) []Answer {
 	for _, each := range match.matches {
 		if each.CanProcess(question) {
-			return each.Process(question)
+			return each.Process(question, context...)
 		}
 	}
 	return nil
