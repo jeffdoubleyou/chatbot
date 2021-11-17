@@ -353,7 +353,7 @@ func (chatbot *ChatBot) LoadCorpusFromDB() (map[string][][]string, error) {
 			if !strings.HasSuffix(question, "?") && !strings.HasSuffix(question, "？") {
 				question = question + "?"
 			}
-			corpus = append(corpus, question, fmt.Sprintf("%s$$$$%s$$$$%v$$$$%s", question, row.Answer, row.Id, row.Class))
+			corpus = append(corpus, question, fmt.Sprintf("%s$$$$%s$$$$%v$$$$%s", question, row.Answer, row.Id, row.Context))
 		}
 		corpuses = append(corpuses, corpus)
 	}
