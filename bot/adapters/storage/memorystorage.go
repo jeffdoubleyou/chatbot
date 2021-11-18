@@ -125,6 +125,7 @@ func (storage *memoryStorage) FindWithContext(text, context string) (map[string]
 }
 
 func (storage *memoryStorage) Search(key string, context ...string) []string {
+	key = strings.ToLower(key)
 	ids := make(map[int]int8)
 	var maxMatches int8
 	collector := func(word string) {
@@ -356,11 +357,11 @@ func (storage *memoryStorage) mapper(data interface{}, writer mr.Writer, cancel 
 		if len([]rune(key)) > thresholdForKeywords {
 			tags := storage.extracter.ExtractTags(key, topKeywords)
 			for i := range tags {
-				collector(tags[i].Text())
+				collector(strings.ToLower(tags[i].Text()))
 			}
 		} else {
 			for word := range storage.segmenter.Cut(key, true) {
-				collector(word)
+				collector(strings.ToLower(word))
 			}
 		}
 	}

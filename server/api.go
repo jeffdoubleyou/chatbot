@@ -77,6 +77,7 @@ func main() {
 	project.Path("/{project}").Methods("GET").HandlerFunc(getProject)
 	project.Path("/").Methods("POST").HandlerFunc(addProject)
 	project.Path("/{project}").Methods("DELETE").HandlerFunc(deleteProject)
+	project.Path("/{project}/train").Methods("GET").HandlerFunc(trainProject)
 
 	// Corpus
 	corpus := router.PathPrefix("/corpus/").Subrouter()
@@ -101,6 +102,23 @@ func main() {
 
 	fmt.Printf("Starting server on %s\n", serverAddress)
 	srv.ListenAndServe()
+}
+
+func trainProject(writer http.ResponseWriter, request *http.Request) {
+	vars := mux.Vars(request)
+	project := vars["project"]
+	if bot, ok := factory.GetChatBot(project); !ok {
+		SendError(writer, fmt.Sprintf("Could not initialize project %s", project), 500)
+		return
+	} else {
+		fmt.Printf("Loaded chat bot for project %s\n", project)
+		if err := bot.TrainWithDB(); err != nil {
+			SendError(writer, err.Error(), 500)
+			return
+		} else {
+			SendJson(writer, map[string]interface{}{"result":"ok"})
+		}
+	}
 }
 
 func getProjectCorpusById(writer http.ResponseWriter, request *http.Request) {
@@ -149,6 +167,7 @@ func getResponse(writer http.ResponseWriter, request *http.Request) {
 		if context != "" {
 			c = []string{context}
 		}
+
 		answers := bot.GetResponse(query, c...)
 		j, _ := json.MarshalIndent(answers, "", "\t")
 		fmt.Printf("RES: %s\n", j)
@@ -184,12 +203,34 @@ func deleteProjectCorpus(writer http.ResponseWriter, request *http.Request) {
 }
 
 func addProjectCorpus(writer http.ResponseWriter, request *http.Request) {
+	var corpus bot.Corpus
+	if err := ParseJsonBody(request, &corpus); err != nil {
+		SendError(writer, fmt.Sprintf("Unable to parse request: %s", err.Error()), http.StatusBadRequest)
+		return
+	}
+	vars := mux.Vars(request)
+	project := vars["project"]
 
+	if project == "" {
+		SendError(writer, "Project parameter is missing", http.StatusBadRequest)
+		return
+	}
+
+	if bot, ok := factory.GetChatBot(project); !ok {
+		SendError(writer, fmt.Sprintf("Could not initialize project %s", project)	, http.StatusInternalServerError)
+		return
+	} else {
+		if err := bot.AddCorpusToDB(&corpus); err != nil {
+			SendError(writer, fmt.Sprintf("Could not add corpus to database: %s", err.Error()), http.StatusBadRequest)
+			return
+		}
+		SendJson(writer, corpus)
+	}
 }
 
 func listProjectCorpus(writer http.ResponseWriter, request *http.Request) {
 	vars := mux.Vars(request)
-	project := vars["id"]
+	project := vars["project"]
 	c := bot.Corpus{
 		Project: project,
 	}
@@ -199,6 +240,7 @@ func listProjectCorpus(writer http.ResponseWriter, request *http.Request) {
 	if limit == 0 {
 		limit = 100
 	}
+	fmt.Printf("Project: %s\n", project)
 	corpora := factory.ListCorpus(c, start, limit)
 	SendJson(writer, corpora)
 }

@@ -60,8 +60,10 @@ func (match *closestMatch) CanProcess(string) bool {
 
 func (match *closestMatch) Process(text string, context ...string) []Answer {
 	if responses, ok := match.storage.Find(text, context...); ok {
+		fmt.Printf("Got response from find...")
 		return match.processExactMatch(responses)
 	} else {
+		fmt.Printf("Get similar match...")
 		return match.processSimilarMatch(text, context...)
 	}
 }
@@ -96,6 +98,7 @@ func (match *closestMatch) processExactMatch(responses map[string]int) []Answer 
 }
 
 func (match *closestMatch) processSimilarMatch(text string, context ...string) []Answer {
+	fmt.Printf("Get similar to '%s'\n", text)
 	result, err := mr.MapReduce(generator(match, text), mapper(match), reducer(match))
 	if err != nil {
 		return nil
