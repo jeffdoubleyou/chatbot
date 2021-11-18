@@ -15,9 +15,7 @@ require (
 	github.com/gorilla/mux v1.6.2
 	github.com/joho/godotenv v1.4.0 // indirect
 	github.com/mattn/go-sqlite3 v1.14.0
-	github.com/prometheus/common v0.26.0
 	github.com/rogpeppe/go-internal v1.8.0 // indirect
-	github.com/sirupsen/logrus v1.8.1 // indirect
 	github.com/tal-tech/go-zero v1.2.1
 	github.com/wangbin/jiebago v0.3.2
 	golang.org/x/crypto v0.0.0-20210921155107-089bfa567519 // indirect
