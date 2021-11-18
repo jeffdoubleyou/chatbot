@@ -11,7 +11,6 @@ import (
 
 	"github.com/go-xorm/xorm"
 	"github.com/jeffdoubleyou/chatbot/bot/corpus"
-	"github.com/prometheus/common/log"
 
 	"runtime"
 	"time"
@@ -69,7 +68,7 @@ func (f *ChatBotFactory) Init() {
 		}
 		err = engine.Sync2(&Corpus{}, &Project{}, &Feedback{})
 		if err != nil {
-			log.Error(err)
+			fmt.Println(err.Error())
 		}
 	}
 	projects := make([]Project, 0)
@@ -124,7 +123,7 @@ func (f *ChatBotFactory) ListProject() []Project {
 	var err error
 	err = engine.Find(&projects)
 	if err != nil {
-		log.Error(err)
+		fmt.Println(err.Error())
 	}
 	return projects
 }
@@ -187,7 +186,7 @@ func (f *ChatBotFactory) ListCorpus(corpus Corpus, start int, limit int) []Corpu
 	}
 	err = session.Find(&corpuses)
 	if err != nil {
-		log.Error(err)
+		fmt.Println(err.Error())
 	}
 	return corpuses
 }
@@ -205,7 +204,7 @@ func (chatbot *ChatBot) Init() {
 
 	err = engine.Sync2(&Corpus{}, &Project{}, &Feedback{})
 	if err != nil {
-		log.Error(err)
+		fmt.Println(err.Error())
 	}
 
 	if chatbot.Config.DirCorpus != "" {
@@ -220,7 +219,6 @@ func (chatbot *ChatBot) Init() {
 	}
 	err = chatbot.TrainWithDB()
 	if err != nil {
-		log.Error(err)
 		panic(err)
 	}
 }
